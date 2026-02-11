@@ -23,12 +23,14 @@
     "@demox-labs/aleo-wallet-adapter-leo": "0.0.25",
     "@demox-labs/aleo-wallet-adapter-react": "0.0.22",
     "@demox-labs/aleo-wallet-adapter-reactui": "0.0.36",
+    "@provablehq/sdk": "^0.9.15",
     "@tailwindcss/forms": "0.5.11",
     "@tailwindcss/typography": "0.5.19",
     "browserify-fs": "^1.0.0",
     "classnames": "2.5.1",
     "daisyui": "5.5.14",
     "json-rpc-2.0": "^1.6.0",
+    "localforage": "^1.10.0",
     "minimatch": "^10.1.1",
     "next": "15.2.4",
     "next-pwa": "5.6.0",
@@ -65,5 +67,6 @@
     "rimraf": "^6.0.1",
     "tailwindcss": "4.1.18",
     "typescript": "5.9.3"
-  }
+  },
+  "type": "module"
 }

@@ -5,3 +5,4 @@ node_modules
 *program.json*
 program/build
 program/backup
+.husky
