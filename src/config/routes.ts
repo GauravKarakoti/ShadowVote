@@ -1,10 +1,9 @@
 const routes = {
+  home: '/',
+  dashboard: '/dashboard',
+  createProposal: '/proposals/create',
+  proposal: (id: string) => `/proposals/${id}`,
   admin: '/admin',
-  settings: '/settings',
-  authorize: '/authorize',
-  board: '/boardPage',
-  postBounty: '/post-bounty',
-  dashBoard: '/user-dashboard',
 };
 
 export default routes;

@@ -1,23 +1,10 @@
-import cn from 'classnames';
-
-import Button from '@/components/ui/button';
-import routes from '@/config/routes';
-
-import { HomeIcon } from '@/components/icons/home';
-
+import routes from '@/config/routes.js';
+import { HomeIcon } from '@/components/icons/home.jsx';
 
 const menuItems = [
   {
-    name: 'Getting Started',
+    name: 'Dashboard',
     icon: <HomeIcon />,
-    href: routes.admin,
+    href: routes.dashboard,
   },
-
-
 ];
-
-type SidebarProps = {
-  className?: string;
-};
-
-

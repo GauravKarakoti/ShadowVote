@@ -1,14 +1,10 @@
-import type { NextPageWithLayout } from '@/types';
+import type { NextPageWithLayout } from '@/types/index.js';
 import { NextSeo } from 'next-seo';
 import Layout from '@/layouts/_layout';
-import Button from '@/components/ui/button';
+import Button from '@/components/ui/button/index';
 import { useWallet } from '@demox-labs/aleo-wallet-adapter-react';
 import { WalletNotConnectedError } from '@demox-labs/aleo-wallet-adapter-base';
 import { useRouter } from 'next/router';
-import dynamic from 'next/dynamic';
-
-// Uncomment this line to enable the animated background ✨
-// const GLSLBackground = dynamic(() => import('../utils/GLSLBackground'), { ssr: false });
 
 const MainPage: NextPageWithLayout = () => {
   const { publicKey } = useWallet();
@@ -16,11 +12,10 @@ const MainPage: NextPageWithLayout = () => {
 
   const handleButtonClick = async () => {
     try {
-      if (!publicKey) {
-        throw new WalletNotConnectedError();
-      }
-      router.push('/dashboard'); // Change to your target route
+      if (!publicKey) throw new WalletNotConnectedError();
+      router.push('/dashboard'); 
     } catch (error) {
+      // Prompt wallet connection usually handles itself, but alert as backup
       alert('Please connect your wallet to continue.');
     }
   };
@@ -28,19 +23,16 @@ const MainPage: NextPageWithLayout = () => {
   return (
     <>
       <NextSeo
-        title="Aleo Starter Template"
-        description="Build Aleo apps faster with this open-source starter kit"
+        title="ShadowVote"
+        description="Private, coercion-resistant DAO voting on Aleo."
       />
 
-      {/* Optional: Background animation */}
-      {/* <GLSLBackground /> */}
-
-      <div className="fixed inset-0 bg-primary bg-opacity-80 z-10 flex flex-col items-center justify-center px-4 py-16">
+      <div className="fixed inset-0 bg-base-100 z-10 flex flex-col items-center justify-center px-4 py-16">
         <h1 className="text-5xl font-extrabold text-center tracking-tight text-primary-content sm:text-6xl">
-          Aleo Starter
+          ShadowVote
         </h1>
-        <p className="mt-4 text-lg text-center text-primary-content max-w-lg">
-          Build private-by-default apps with Aleo, React, Tailwind, and Leo Wallet.
+        <p className="mt-4 text-lg text-center text-secondary-content max-w-lg">
+          Vote your conscience, not your wallet. Anonymous, verifiable on-chain governance.
         </p>
 
         <div className="flex flex-col items-center mt-10 space-y-4 sm:flex-row sm:space-x-6 sm:space-y-0">
@@ -48,7 +40,7 @@ const MainPage: NextPageWithLayout = () => {
             onClick={handleButtonClick}
             className="btn btn-primary px-6 py-3 text-lg font-semibold"
           >
-            {publicKey ? 'Enter App' : 'Connect Wallet'}
+            {publicKey ? 'Launch App' : 'Connect Wallet'}
           </Button>
         </div>
       </div>

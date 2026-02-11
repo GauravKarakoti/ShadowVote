@@ -1,16 +1,15 @@
-// utils/constants.ts
+export enum ProposalStatus {
+  Pending = 0,
+  Active = 1,
+  Defeated = 2,
+  Succeeded = 3,
+  Executed = 4,
+}
 
-// Enum representing bounty statuses
-export enum BountyStatusCode {
-    Open = 0,
-    Completed = 1,
-    // Add more statuses here if needed
-  }
-  
-  // Mapping from status codes to human-readable labels
-  export const BountyStatusLabels: Record<BountyStatusCode, string> = {
-    [BountyStatusCode.Open]: 'Open',
-    [BountyStatusCode.Completed]: 'Completed',
-    // Add more mappings here if needed
-  };
-  
+export const ProposalStatusLabels: Record<ProposalStatus, string> = {
+  [ProposalStatus.Pending]: 'Pending',
+  [ProposalStatus.Active]: 'Active',
+  [ProposalStatus.Defeated]: 'Defeated',
+  [ProposalStatus.Succeeded]: 'Passed',
+  [ProposalStatus.Executed]: 'Executed',
+};

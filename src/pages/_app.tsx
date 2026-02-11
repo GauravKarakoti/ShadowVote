@@ -1,6 +1,6 @@
 // _app.tsx
 import type { AppProps } from 'next/app';
-import type { NextPageWithLayout } from '@/types';
+import type { NextPageWithLayout } from '@/types/index.js';
 import { useState } from 'react';
 import Head from 'next/head';
 import { Hydrate, QueryClient, QueryClientProvider } from 'react-query';
@@ -23,12 +23,10 @@ import '@/assets/css/globals.css';
 
 import '@demox-labs/aleo-wallet-adapter-reactui/styles.css';
 
-import { CURRENT_NETWORK, CURRENT_RPC_URL } from '@/types';
-
 // Initialize the wallet adapters outside the component
 const wallets = [
   new LeoWalletAdapter({
-    appName: 'zKontract',
+    appName: 'ShadowVote',
   }),
 ];
 
