@@ -1,0 +1,201 @@
+@import "tailwindcss";
+@plugin "daisyui" {
+  themes: light --default, dark --prefersdark, cupcake, bumblebee, emerald, forest, aqua, lofi, pastel, fantasy, wireframe, black, luxury, dracula, synthwave;
+}
+@plugin "@tailwindcss/typography";
+@plugin "@tailwindcss/forms";
+
+@source "../pages/**/*.{js,ts,jsx,tsx}";
+@source "../components/**/*.{js,ts,jsx,tsx}";
+@source "../layouts/**/*.{js,ts,jsx,tsx}";
+
+@theme {
+  --color-brand: 43 24 39;
+  
+  --font-family-body: 'Fira Code', monospace, ui-sans-serif, system-ui, sans-serif;
+  
+  --spacing-13: 3.375rem;
+  --margin-1/2: 50%;
+  --padding-full: 100%;
+  --width-calc-320: calc(100% - 320px);
+  --width-calc-358: calc(100% - 358px);
+  
+  --font-size-13px: 13px;
+  --line-height-13px: 18px;
+  
+  --border-width-3: 3px;
+  
+  --shadow-main: 0px 6px 18px rgba(0, 0, 0, 0.04);
+  --shadow-light: 0px 4px 4px rgba(0, 0, 0, 0.08);
+  --shadow-large: 0px 8px 16px rgba(43, 24, 39, 0.1);
+  --shadow-card: 0px 2px 6px rgba(0, 0, 0, 0.06);
+  --shadow-transaction: 0px 8px 16px rgba(43, 24, 39, 0.06);
+  --shadow-button: 0px 2px 4px rgba(0, 0, 0, 0.06), 0px 4px 6px rgba(0, 0, 0, 0.1);
+  
+  --drop-shadow-main: 0px 4px 8px rgba(0, 0, 0, 0.08);
+  
+  --background-image-gradient-radial: radial-gradient(var(--tw-gradient-stops));
+  
+  --animate-blink: blink 1.4s infinite both;
+  --animate-move-up: moveUp 500ms infinite alternate;
+  --animate-scale-up: scaleUp 500ms infinite alternate;
+  --animate-drip-expand: expand 500ms ease-in forwards;
+  --animate-drip-expand-large: expand-large 600ms ease-in forwards;
+  --animate-move-up-small: moveUpSmall 500ms infinite alternate;
+  
+  @keyframes blink {
+    0% { opacity: 0.2; }
+    20% { opacity: 1; }
+    100% { opacity: 0.2; }
+  }
+  
+  @keyframes moveUp {
+    0% { transform: translateY(0); }
+    100% { transform: translateY(-20px); }
+  }
+  
+  @keyframes moveUpSmall {
+    0% { transform: translateY(0); }
+    100% { transform: translateY(-10px); }
+  }
+  
+  @keyframes scaleUp {
+    0% { transform: scale(0); }
+    100% { transform: scale(1); }
+  }
+  
+  @keyframes expand {
+    0% { opacity: 0; transform: scale(1); }
+    30% { opacity: 1; }
+    80% { opacity: 0.5; }
+    100% { transform: scale(30); opacity: 0; }
+  }
+  
+  @keyframes expand-large {
+    0% { opacity: 0; transform: scale(1); }
+    30% { opacity: 1; }
+    80% { opacity: 0.5; }
+    100% { transform: scale(96); opacity: 0; }
+  }
+  
+  --breakpoint-xs: 500px;
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1440px;
+  --breakpoint-3xl: 1780px;
+  --breakpoint-4xl: 2160px;
+}
+
+@layer base {
+  :root {
+    --color-brand: 43 24 39;
+  }
+  html,
+  body {
+    @apply antialiased bg-base-100 text-base-content;
+    font-family: 'Fira Code', monospace, ui-sans-serif, system-ui, sans-serif;
+  }
+  .dynamic-html h6 {
+    @apply font-medium uppercase;
+  }
+  .dynamic-html p {
+    @apply mb-3;
+  }
+}
+
+@layer utilities {
+  .text-case-inherit {
+    text-transform: inherit;
+  }
+  .letter-space-inherit {
+    letter-spacing: inherit;
+  }
+  .word-break-all {
+    word-break: break-all;
+  }
+  .animation-delay-200 {
+    animation-delay: 200ms;
+  }
+  .animation-delay-500 {
+    animation-delay: 500ms;
+  }
+  .animation-delay-700 {
+    animation-delay: 700ms;
+  }
+  .text-vertical {
+    writing-mode: tb;
+    text-orientation: upright;
+  }
+}
+
+/* Hide spin button for input type number */
+input.spin-button-hidden::-webkit-outer-spin-button,
+input.spin-button-hidden::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/*================================================================
+Styles for Swiper slider
+================================================================*/
+.swiper {
+  @apply flex flex-col;
+}
+
+.swiper-wrapper {
+  @apply order-first;
+}
+
+.swiper-scrollbar {
+  @apply relative bg-gray-200 rounded dark:bg-gray-600;
+}
+
+.swiper-horizontal > .swiper-scrollbar {
+  @apply z-10 mt-4 mb-0 h-0.5 w-full sm:mt-6;
+}
+
+.swiper-vertical > .swiper-scrollbar {
+  @apply absolute top-0 right-1 z-10 h-full w-0.5;
+}
+
+.swiper-scrollbar-drag {
+  @apply relative bg-gray-900 rounded dark:bg-gray-700;
+}
+
+.swiper-horizontal .swiper-scrollbar-drag {
+  @apply top-[-1px] left-0 h-[3px] w-full shadow-sm;
+}
+
+.swiper-vertical .swiper-scrollbar-drag {
+  @apply left-[-1px] top-0 h-full w-[3px] shadow-sm;
+}
+
+.swiper-scrollbar-cursor-drag {
+  @apply cursor-move;
+}
+
+.swiper-scrollbar-lock {
+  @apply hidden;
+}
+
+.transaction-table {
+  border-spacing: 0 12px;
+  margin-top: -12px;
+}
+.transaction-table > thead tr > th {
+  text-align: left;
+}
+.text-heading-style {
+  @apply text-sm font-medium tracking-wider;
+}
+
+/* React Share button custom styles */
+.product-share .react-share__ShareButton {
+  @apply flex flex-col items-center justify-center;
+}
+
+.wallet-adapter-dropdown .wallet-adapter-button {
+  @apply bg-base-100 text-base-content ;
+}

@@ -1,0 +1,20 @@
+{
+  "name": "shadowvote-indexer",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node indexer.js",
+    "dev": "nodemon indexer.js"
+  },
+  "dependencies": {
+    "@provablehq/sdk": "^0.9.15",
+    "circomlibjs": "^0.1.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "pg": "^8.11.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
