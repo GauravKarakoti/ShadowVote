@@ -1,9 +1,7 @@
 import { NextSeo } from 'next-seo';
-import type { NextPageWithLayout } from '@/types';
-import Layout from '@/layouts/_layout';
-import { useIsMounted } from '@/hooks/use-is-mounted';
-
-
+import type { NextPageWithLayout } from '@/types/index.js';
+import Layout from '@/layouts/_layout.jsx';
+import { useIsMounted } from '@/hooks/use-is-mounted.js';
 
 const ErrorPage: NextPageWithLayout = () => {
   const isMounted = useIsMounted();
@@ -12,7 +10,7 @@ const ErrorPage: NextPageWithLayout = () => {
     <>
       <NextSeo
         title="404 Error! No Result Found"
-        description="zKontract: A Zero-Knowledge Bounty Board on Aleo"
+        description="ShadowVote: Privacy-Preserving Voting on Aleo"
       />
 
       <div className="flex max-w-full flex-col items-center justify-center text-center">
@@ -26,9 +24,6 @@ const ErrorPage: NextPageWithLayout = () => {
           Sorry, the page you are looking for might be renamed, removed, or
           might never exist.
         </p>
-   
-
-
       </div>
     </>
   );
