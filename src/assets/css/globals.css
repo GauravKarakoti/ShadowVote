@@ -198,4 +198,9 @@ Styles for Swiper slider
 
 .wallet-adapter-dropdown .wallet-adapter-button {
   @apply bg-base-100 text-base-content ;
+  width: auto;
+  min-width: max-content;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  white-space: nowrap;
 }

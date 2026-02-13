@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { AleoNetworkClient, EventListener } from '@provablehq/sdk/mainnet.js';
+import { AleoNetworkClient } from '@provablehq/sdk/mainnet.js';
 import pkg from 'pg';
 const { Pool } = pkg;
 import { MerkleTree } from './merkle.js';
@@ -15,11 +15,13 @@ const pool = new Pool({
   database: process.env.DB_NAME,
   password: process.env.DB_PASSWORD,
   port: 5432,
+  ssl: {
+    rejectUnauthorized: false // This bypasses strict certificate validation, which is common for many managed DBs
+  }
 });
 
 // ---------- Aleo connection ----------
-const client = new AleoNetworkClient(process.env.ALEO_API_URL || 'https://api.explorer.aleo.org/v1/testnet');
-const listener = new EventListener(client);
+const client = new AleoNetworkClient(process.env.ALEO_API_URL || 'http://api.explorer.provable.com/v1');
 
 // ---------- In‑memory Merkle tree ----------
 const merkleTree = new MerkleTree(20); // depth 20
@@ -36,19 +38,64 @@ async function loadLeaves() {
 }
 await loadLeaves();
 
-// ---------- Event listeners ----------
-// Listen to our shadow_vote_v2 contract events (deposit, withdraw)
-listener.addEventListener('shadow_vote_v2.aleo', 'deposit', async (event) => {
-  // event structure: { transaction_id, block_height, data: { address, amount, salt, encrypted_salt } }
-  const { address, amount, salt, encrypted_salt } = event.data;
-  // Wait for 2 confirmations
-  const currentHeight = await client.getLatestBlockHeight();
-  if (currentHeight - event.block_height < 2) {
-    setTimeout(() => processDeposit(event), 10000); // retry later
-    return;
+let lastProcessedHeight = 0; 
+
+async function startPolling() {
+  try {
+    // FIX: Changed from getLatestBlockHeight() to getLatestHeight()
+    const currentHeight = await client.getLatestHeight();
+    
+    // If we just started, optionally start from the current height or a specific block
+    if (lastProcessedHeight === 0) {
+      lastProcessedHeight = currentHeight;
+    }
+
+    while (lastProcessedHeight <= currentHeight) {
+      const block = await client.getBlock(lastProcessedHeight);
+      
+      // Look for transactions in the block
+      if (block.transactions) {
+        for (const tx of block.transactions) {
+          // Check if transaction was accepted and executed
+          if (tx.status === 'accepted' && tx.type === 'execute' && tx.transaction.execution) {
+            const execution = tx.transaction.execution;
+            
+            for (const transition of execution.transitions) {
+              // Match your program and the function you want to index
+              if (transition.program === 'shadow_vote_v2.aleo' && transition.function === 'cast_vote') {
+                
+                console.log(`Found cast_vote at block ${lastProcessedHeight}`);
+                
+                // Extract the parameters from the transition inputs/outputs
+                const address = transition.inputs[0]?.value; 
+                const amount = transition.inputs[1]?.value; 
+                
+                const eventData = {
+                  address: address,
+                  amount: amount,
+                  salt: "0",             
+                  encrypted_salt: "..."  
+                };
+
+                await processDeposit({ data: eventData, block_height: lastProcessedHeight });
+              }
+            }
+          }
+        }
+      }
+      lastProcessedHeight++;
+    }
+  } catch (error) {
+    console.error("Error polling blocks:", error.message);
   }
-  await processDeposit(event);
-});
+  
+  // Poll again every 10 seconds
+  setTimeout(startPolling, 10000);
+}
+
+// Start the polling loop after loading leaves
+await loadLeaves();
+startPolling();
 
 async function processDeposit(event) {
   const { address, amount, salt, encrypted_salt } = event.data;

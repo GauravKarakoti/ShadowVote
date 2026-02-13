@@ -58,8 +58,7 @@ function ThemeSelector() {
 
 function HeaderRightArea() {
   return (
-    <div className="relative order-last flex shrink-0 items-center gap-3 sm:gap-6 lg:gap-8 btn-primary-content text-primary">
-      {/* Use the updated ThemeSelector */}
+    <div className="relative order-last flex shrink items-center gap-3 sm:gap-6 lg:gap-8 btn-primary-content text-primary">
       <ThemeSelector />
       <WalletMultiButton />
     </div>
