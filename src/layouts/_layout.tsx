@@ -76,7 +76,7 @@ export function Header() {
         isMounted && windowScroll.y > 10 ? 'shadow-card backdrop-blur' : ''
       }`}
     >
-      <div className="flex flex-wrap items-center justify-between px-8 py-8 sm:px-6 lg:px-8 xl:px-10 3xl:px-12">
+      <div className="flex flex-wrap items-center justify-between px-8 py-2 sm:px-6 lg:px-8 xl:px-10 3xl:px-12">
         <div className="flex items-center space-x-2">
           {process.env.URL && (
             <a
@@ -125,7 +125,7 @@ export default function Layout({
     // Use DaisyUI tokens for the background and text color
     <div className="bg-base-100 text-base-content flex min-h-screen flex-col">
       <Header />
-      <main className="mb-12 flex flex-grow flex-col pt-4 sm:pt-12 bg-primary">
+      <main className="flex flex-grow flex-col pt-4 sm:pt-12 bg-primary">
         {children}
       </main>
       <Footer />

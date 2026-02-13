@@ -1,5 +1,5 @@
 /** @type {import('tailwindcss').Config} */
-module.exports = {
+export default {
   // Tailwind v4 uses CSS-first config, but DaisyUI may still need this
   daisyui: {
     themes: [
