@@ -6,3 +6,4 @@ node_modules
 program/build
 program/backup
 .husky
+debug.log

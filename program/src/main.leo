@@ -1,162 +1,215 @@
 // ShadowVote v2 – Private DAO Voting on Aleo
 // Wave 2: Multi‑proposal + Nullifier mapping + Merkle root management
 
-program shadow_vote_v2.aleo;
+program shadow_vote_v2.aleo {
+    @admin(address="aleo14y3wnsmr9ph4422qqgcnze6dvm7k8g89prm4lv23qs9w5emah59swp0kfd")
+    async constructor() {}
 
-// --------------------------------
-//  Structs & Mappings
-// --------------------------------
+    // --------------------------------
+    //  Structs & Mappings
+    // --------------------------------
 
-struct Proposal {
-    description: field,          // Hash of off‑chain description (IPFS / Snapshot)
-    options: [field; 10],       // Option labels (max 10, padded with 0field)
-    encrypted_tally: [field; 10], // Homomorphically encrypted vote sum per option
-    end_block: u32,             // Voting deadline (Aleo block height)
-    admin: address,            // Creator (only admin can finalize)
-}
+    struct Proposal {
+        description: field,          // Hash of off‑chain description (IPFS / Snapshot)
+        options: [field; 10],       // Option labels (max 10, padded with 0field)
+        encrypted_tally: [field; 10], // Homomorphically encrypted vote sum per option
+        end_block: u32,             // Voting deadline (Aleo block height)
+        admin: address,            // Creator (only admin can finalize)
+    }
 
-// Global DAO settings
-struct DaoConfig {
-    token_contract: address,    // Address of the token contract (e.g., credits.aleo)
-    admin: address,            // DAO admin (can create proposals, change config)
-    voter_tree_depth: u8,      // Merkle tree depth (fixed at 20)
-}
+    struct DaoConfig {
+        token_contract: address,
+        admin: address,
+        voter_tree_depth: u8,
+    }
 
-// Core state
-mapping config: () => DaoConfig;               // Singleton config
-mapping proposals: u64 => Proposal;           // Proposal ID → Proposal
-mapping proposal_counter: () => u64;          // Auto‑increment ID counter
-mapping nullifiers: field => bool;           // Global nullifier set (prevents double voting)
-mapping voter_root: () => field;             // Current Merkle root of eligible voters
+    // Custom struct to format data for the leaf hash
+    struct VoterLeaf {
+        voter: address,
+        balance: u64,
+        salt: field,
+    }
 
-// --------------------------------
-//  Initialization (admin only)
-// --------------------------------
+    // Custom struct for 2-to-1 Merkle tree hashes
+    struct HashNode {
+        left: field,
+        right: field,
+    }
 
-transition initialize(
-    token_contract: address,
-    admin: address,
-    initial_root: field,
-) -> Future {
-    // Ensure not already initialized
-    let exists: bool = Mapping::contains(config, ());
-    assert(!exists, "Already initialized");
+    mapping config: u8 => DaoConfig;
+    mapping proposals: u64 => Proposal;
+    mapping proposal_counter: u8 => u64;
+    mapping nullifiers: field => bool;
+    mapping voter_root: u8 => field;
 
-    let cfg: DaoConfig = DaoConfig {
-        token_contract: token_contract,
-        admin: admin,
-        voter_tree_depth: 20u8,
-    };
-    Mapping::set(config, (), cfg);
-    Mapping::set(voter_root, (), initial_root);
-    Mapping::set(proposal_counter, (), 0u64);
-    Future::new(return)
-}
+    // --------------------------------
+    //  Initialization (admin only)
+    // --------------------------------
 
-// --------------------------------
-//  Proposal Management (admin only)
-// --------------------------------
+    async transition initialize(
+        token_contract: address,
+        admin: address,
+        initial_root: field,
+    ) -> Future {
+        return finalize_initialize(token_contract, admin, initial_root);
+    }
 
-transition create_proposal(
-    description: field,
-    options: [field; 10],
-    end_block: u32,
-) -> Future {
-    // Only admin can create proposals
-    let cfg: DaoConfig = Mapping::get(config, ());
-    assert_eq(self.caller, cfg.admin, "Caller is not DAO admin");
+    async function finalize_initialize(
+        token_contract: address,
+        admin: address,
+        initial_root: field,
+    ) {
+        let exists: bool = Mapping::contains(config, 0u8);
+        assert(!exists);
 
-    // Get next ID
-    let next_id: u64 = Mapping::get(proposal_counter, ()) + 1u64;
-    Mapping::set(proposal_counter, (), next_id);
+        let cfg: DaoConfig = DaoConfig {
+            token_contract: token_contract,
+            admin: admin,
+            voter_tree_depth: 20u8,
+        };
+        Mapping::set(config, 0u8, cfg);
+        Mapping::set(voter_root, 0u8, initial_root);
+        Mapping::set(proposal_counter, 0u8, 0u64);
+    }
 
-    // Create and store proposal
-    let proposal: Proposal = Proposal {
-        description: description,
-        options: options,
-        encrypted_tally: [0field; 10],
-        end_block: end_block,
-        admin: self.caller,
-    };
-    Mapping::set(proposals, next_id, proposal);
+    // --------------------------------
+    //  Proposal Management (admin only)
+    // --------------------------------
 
-    // Emit event (optional)
-    Future::new(return next_id)
-}
+    async transition create_proposal(
+        description: field,
+        options: [field; 10],
+        end_block: u32,
+    ) -> Future {
+        return finalize_create_proposal(description, options, end_block, self.caller);
+    }
 
-// --------------------------------
-//  Core Voting Logic (ZK verified)
-// --------------------------------
+    async function finalize_create_proposal(
+        description: field,
+        options: [field; 10],
+        end_block: u32,
+        caller: address,
+    ) {
+        let cfg: DaoConfig = Mapping::get(config, 0u8);
+        assert_eq(caller, cfg.admin);
 
-// Cast a private vote
-//   - proposal_id: target proposal
-//   - vote_option: index 0..9
-//   - balance: voting power (private)
-//   - merkle_path: authentication path to prove balance commitment
-//   - nullifier: unique per (voter, proposal) to prevent double vote
-//   - old_root: current Merkle root (public)
-//   - new_root: updated root after deducting balance (public)
-//   - salt: secret used to create leaf commitment
-transition cast_vote(
-    proposal_id: u64,
-    vote_option: u8,
-    balance: u64,
-    merkle_path: [field; 20],
-    nullifier: field,
-    old_root: field,
-    new_root: field,
-    salt: field,
-) -> Future {
-    // 1. Verify proposal exists and is active
-    let proposal: Proposal = Mapping::get(proposals, proposal_id);
-    assert(proposal.end_block >= block.height, "Voting period ended");
-    assert(vote_option < 10u8, "Invalid option");
-    assert(proposal.options[vote_option] != 0field, "Option not active");
+        let next_id: u64 = Mapping::get(proposal_counter, 0u8) + 1u64;
+        Mapping::set(proposal_counter, 0u8, next_id);
 
-    // 2. Check nullifier not used
-    assert(!Mapping::contains(nullifiers, nullifier), "Nullifier already used");
+        let proposal: Proposal = Proposal {
+            description: description,
+            options: options,
+            encrypted_tally: [0field; 10],
+            end_block: end_block,
+            admin: caller,
+        };
+        Mapping::set(proposals, next_id, proposal);
+    }
 
-    // 3. Recompute leaf commitment = Poseidon2(caller, balance, salt)
-    let leaf: field = Poseidon2::hash([self.caller, balance, salt]);
+    function verify_merkle_proof(
+        leaf: field,
+        root: field,
+        path: [field; 20],
+        indices: [bool; 20]
+    ) -> bool {
+        // Removed 'mut' here!
+        let current: field = leaf; 
+        for i: u8 in 0u8..20u8 {
+            if indices[i] {
+                // Sibling is on the left
+                current = Poseidon2::hash_to_field(HashNode { left: path[i], right: current });
+            } else {
+                // Sibling is on the right
+                current = Poseidon2::hash_to_field(HashNode { left: current, right: path[i] });
+            }
+        }
+        return current == root;
+    }
 
-    // 4. Verify Merkle inclusion proof
-    let cfg: DaoConfig = Mapping::get(config, ());
-    let verified: bool = MerkleVerify::verify(
-        merkle_path,
-        old_root,
-        leaf,
-        cfg.voter_tree_depth
-    );
-    assert(verified, "Invalid Merkle proof");
+    // --------------------------------
+    //  Core Voting Logic (ZK verified)
+    // --------------------------------
 
-    // 5. Update encrypted tally (simplified: additive homomorphic)
-    //    In production, use ElGamal or Pedersen commitment + decryption key.
-    let current_tally: field = proposal.encrypted_tally[vote_option];
-    let updated_tally: field = current_tally + balance; // PLACEHOLDER: real encryption
-    proposal.encrypted_tally[vote_option] = updated_tally;
-    Mapping::set(proposals, proposal_id, proposal);
+    async transition cast_vote(
+        proposal_id: u64,
+        vote_option: u8,
+        balance: u64,
+        merkle_path: [field; 20],
+        path_indices: [bool; 20], // <--- ADDED: Required to evaluate left/right in the Merkle tree
+        nullifier: field,
+        old_root: field,
+        new_root: field,
+        salt: field,
+    ) -> Future {
+        // 1. Recompute leaf commitment using Poseidon4 (for 3 fields)
+        let leaf_input: VoterLeaf = VoterLeaf {
+            voter: self.caller,
+            balance: balance,
+            salt: salt,
+        };
+        let leaf: field = Poseidon4::hash_to_field(leaf_input);
 
-    // 6. Mark nullifier as used
-    Mapping::set(nullifiers, nullifier, true);
+        // 2. Verify Merkle inclusion proof using our custom function
+        let verified: bool = verify_merkle_proof(leaf, old_root, merkle_path, path_indices);
+        assert(verified);
 
-    // 7. Update the voter Merkle root (remove used balance)
-    //    The new_root is computed off‑chain and verified by the circuit.
-    //    Here we simply store it.
-    Mapping::set(voter_root, (), new_root);
+        // 3. Defer mapping operations to the on-chain finalize block
+        return finalize_cast_vote(
+            proposal_id,
+            vote_option,
+            balance,
+            nullifier,
+            old_root,
+            new_root
+        );
+    }
 
-    Future::new(return)
-}
+    async function finalize_cast_vote(
+        proposal_id: u64,
+        vote_option: u8,
+        balance: u64,
+        nullifier: field,
+        old_root: field,
+        new_root: field,
+    ) {
+        let proposal: Proposal = Mapping::get(proposals, proposal_id);
+        assert(proposal.end_block >= block.height);
+        assert(vote_option < 10u8);
 
-// --------------------------------
-//  Utility: View functions (not transitions)
-// --------------------------------
+        // 1. Safely check if the option is active (using ternary operator)
+        let is_valid_option: bool = false;
+        for i: u8 in 0u8..10u8 {
+            let option_is_active: bool = proposal.options[i] != 0field;
+            is_valid_option = i == vote_option ? option_is_active : is_valid_option;
+        }
+        assert(is_valid_option);
 
-// Get proposal details (public)
-function get_proposal(proposal_id: u64) -> Proposal {
-    return Mapping::get(proposals, proposal_id);
-}
+        assert(!Mapping::contains(nullifiers, nullifier));
 
-// Get current Merkle root
-function get_current_root() -> field {
-    return Mapping::get(voter_root, ());
+        // 2. Safely update the tally (using ternary operator)
+        let updated_tally_array: [field; 10] = proposal.encrypted_tally;
+        for i: u8 in 0u8..10u8 {
+            let current_val: field = updated_tally_array[i];
+            let new_val: field = current_val + (balance as field);
+            updated_tally_array[i] = i == vote_option ? new_val : current_val;
+        }
+        
+        // Reconstruct and save
+        let updated_proposal: Proposal = Proposal {
+            description: proposal.description,
+            options: proposal.options,
+            encrypted_tally: updated_tally_array,
+            end_block: proposal.end_block,
+            admin: proposal.admin
+        };
+        
+        Mapping::set(proposals, proposal_id, updated_proposal);
+        Mapping::set(nullifiers, nullifier, true);
+
+        // Safety check: ensure user proved against current root
+        let current_root: field = Mapping::get(voter_root, 0u8);
+        assert_eq(current_root, old_root);
+        
+        Mapping::set(voter_root, 0u8, new_root);
+    }
 }
