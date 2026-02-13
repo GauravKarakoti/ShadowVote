@@ -1,7 +1,7 @@
 import { NextSeo } from 'next-seo';
 import type { NextPageWithLayout } from '@/types/index.js';
-import Layout from '@/layouts/_layout.jsx';
-import { useIsMounted } from '@/hooks/use-is-mounted.js';
+import Layout from '@/layouts/_layout';
+import { useIsMounted } from '@/hooks/use-is-mounted';
 
 const ErrorPage: NextPageWithLayout = () => {
   const isMounted = useIsMounted();
