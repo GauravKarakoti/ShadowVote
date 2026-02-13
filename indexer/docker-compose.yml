@@ -19,7 +19,7 @@ services:
       DB_USER: shadow
       DB_PASSWORD: secret
       DB_NAME: shadowvote
-      ALEO_API_URL: http://api.explorer.provable.com/v1
+      ALEO_API_URL: https://api.explorer.provable.com/v2
     ports:
       - "3000:3000"
 volumes:

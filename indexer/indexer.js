@@ -21,7 +21,7 @@ const pool = new Pool({
 });
 
 // ---------- Aleo connection ----------
-const client = new AleoNetworkClient(process.env.ALEO_API_URL || 'http://api.explorer.provable.com/v1');
+const client = new AleoNetworkClient(process.env.ALEO_API_URL || 'https://api.explorer.provable.com/v2');
 
 // ---------- In‑memory Merkle tree ----------
 const merkleTree = new MerkleTree(20); // depth 20

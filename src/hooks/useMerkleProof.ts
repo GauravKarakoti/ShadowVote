@@ -6,14 +6,17 @@ const proofCache = localForage.createInstance({ name: 'merkleProofs' });
 
 interface CachedProof {
   root: string;
-  proof: any;
+  proof: string[];
+  indices: boolean[];
   encryptedSalt: string;
   timestamp: number;
 }
 
 export function useMerkleProof(address: string | null) {
-  const [proof, setProof] = useState<any>(null);
+  const [proof, setProof] = useState<string[] | null>(null);
+  const [indices, setIndices] = useState<boolean[] | null>(null);
   const [encryptedSalt, setEncryptedSalt] = useState<string | null>(null);
+  const [root, setRoot] = useState<string | null>(null); // <--- ADDED ROOT STATE
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,14 +27,15 @@ export function useMerkleProof(address: string | null) {
 
     async function load() {
       try {
-        // Get current on‑chain root (or from indexer)
+        // Get current on-chain root (or from indexer)
         const currentRoot = await fetchRoot();
+        if (!stale) setRoot(currentRoot); // <--- STORE ROOT
 
         // Try cache
         const cached = await proofCache.getItem<CachedProof>(address as string);
         if (cached && cached.root === currentRoot && Date.now() - cached.timestamp < 3600000) {
-          // Cache valid for 1 hour
           setProof(cached.proof);
+          setIndices(cached.indices);
           setEncryptedSalt(cached.encryptedSalt);
           setLoading(false);
           return;
@@ -41,11 +45,14 @@ export function useMerkleProof(address: string | null) {
         const fresh = await fetchProof(address as string);
         if (!stale) {
           setProof(fresh.proof);
+          setIndices(fresh.indices);
           setEncryptedSalt(fresh.encrypted_salt);
+          
           // Store in cache
           await proofCache.setItem(address as string, {
             root: currentRoot,
             proof: fresh.proof,
+            indices: fresh.indices,
             encryptedSalt: fresh.encrypted_salt,
             timestamp: Date.now()
           });
@@ -61,5 +68,6 @@ export function useMerkleProof(address: string | null) {
     return () => { stale = true; };
   }, [address]);
 
-  return { proof, encryptedSalt, loading, error };
+  // <--- RETURN ROOT HERE
+  return { proof, indices, encryptedSalt, root, loading, error }; 
 }
