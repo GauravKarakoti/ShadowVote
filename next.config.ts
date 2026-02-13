@@ -14,6 +14,8 @@ const nextConfig = {
     TWITTER: process.env.TWITTER,
     DISCORD: process.env.DISCORD,
     RPC_URL: process.env.RPC_URL,
+    INDEXER_URL: process.env.INDEXER_URL,
+    PRIVATE_KEY: process.env.PRIVATE_KEY
   },
   reactStrictMode: true,
   ...(process.env.NODE_ENV === 'production' && {

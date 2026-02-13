@@ -62,22 +62,35 @@ async function startPolling() {
             
             for (const transition of execution.transitions) {
               // Match your program and the function you want to index
-              if (transition.program === 'shadow_vote_v2.aleo' && transition.function === 'cast_vote') {
-                
-                console.log(`Found cast_vote at block ${lastProcessedHeight}`);
-                
-                // Extract the parameters from the transition inputs/outputs
-                const address = transition.inputs[0]?.value; 
-                const amount = transition.inputs[1]?.value; 
-                
-                const eventData = {
-                  address: address,
-                  amount: amount,
-                  salt: "0",             
-                  encrypted_salt: "..."  
-                };
+              if (transition.program === 'shadow_vote_v3.aleo') {
+                if (transition.function === 'cast_vote') {
+                  console.log(`Found cast_vote at block ${lastProcessedHeight}`);
+                  
+                  // Extract the parameters from the transition inputs/outputs
+                  const address = transition.inputs[0]?.value; 
+                  const amount = transition.inputs[1]?.value; 
+                  
+                  const eventData = {
+                    address: address,
+                    amount: amount,
+                    salt: "0",             
+                    encrypted_salt: "..."  
+                  };
 
-                await processDeposit({ data: eventData, block_height: lastProcessedHeight });
+                  await processDeposit({ data: eventData, block_height: lastProcessedHeight });
+                } else if (transition.function === 'cancel_proposal' || transition.function === 'close_proposal') {
+                  // The proposal_id is the first input in both functions
+                  const rawProposalId = transition.inputs[0]?.value; 
+                  const proposalId = parseInt(rawProposalId.replace('u64', ''), 10);
+                  
+                  console.log(`Found ${transition.function} for proposal ${proposalId} at block ${lastProcessedHeight}`);
+                  
+                  // Mark proposal as inactive in the database
+                  await pool.query(
+                    `UPDATE proposals SET is_active = false, updated_at = NOW() WHERE id = $1`,
+                    [proposalId]
+                  );
+                }
               }
             }
           }
@@ -121,6 +134,15 @@ app.use(express.json());
 
 app.get('/root', (req, res) => {
   res.json({ root: merkleTree.root.toString() });
+});
+
+app.get('/proposals', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM proposals ORDER BY id DESC');
+    res.json(result.rows);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 app.get('/proof/:address', async (req, res) => {

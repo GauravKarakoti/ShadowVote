@@ -26,9 +26,9 @@ export type ProposalData = {
   title: string;
   description: string;
   creatorAddress: string;
-  deadline: string; // or block height
-  status: string;
+  deadline: number; // Block height
+  isActive: boolean; // <--- NEW
   votes?: VoteData[];
 };
 
-export const SHADOWVOTE_PROGRAM_ID = 'shadow_vote_v2.aleo';
+export const SHADOWVOTE_PROGRAM_ID = 'shadow_vote_v3.aleo';

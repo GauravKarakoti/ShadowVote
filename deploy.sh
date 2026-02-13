@@ -45,7 +45,7 @@ else
     exit 1
 fi
 
-TOKEN_CONTRACT="shadow_vote_v2.aleo"
+TOKEN_CONTRACT="shadow_vote_v3.aleo"
 ADMIN_ADDRESS="aleo14y3wnsmr9ph4422qqgcnze6dvm7k8g89prm4lv23qs9w5emah59swp0kfd"
 INITIAL_ROOT="0field" # Or the specific starting root field value
 

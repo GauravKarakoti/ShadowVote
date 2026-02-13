@@ -1,20 +1,17 @@
 // ShadowVote v2 – Private DAO Voting on Aleo
 // Wave 2: Multi‑proposal + Nullifier mapping + Merkle root management
 
-program shadow_vote_v2.aleo {
+program shadow_vote_v3.aleo {
     @admin(address="aleo14y3wnsmr9ph4422qqgcnze6dvm7k8g89prm4lv23qs9w5emah59swp0kfd")
     async constructor() {}
 
-    // --------------------------------
-    //  Structs & Mappings
-    // --------------------------------
-
     struct Proposal {
         description: field,          // Hash of off‑chain description (IPFS / Snapshot)
-        options: [field; 10],       // Option labels (max 10, padded with 0field)
+        options: [field; 10],        // Option labels (max 10, padded with 0field)
         encrypted_tally: [field; 10], // Homomorphically encrypted vote sum per option
-        end_block: u32,             // Voting deadline (Aleo block height)
-        admin: address,            // Creator (only admin can finalize)
+        end_block: u32,              // Voting deadline (Aleo block height)
+        admin: address,              // Creator (only admin can finalize)
+        is_active: bool,             // NEW: Tracks if the proposal is open for voting
     }
 
     struct DaoConfig {
@@ -95,13 +92,14 @@ program shadow_vote_v2.aleo {
 
         let next_id: u64 = Mapping::get(proposal_counter, 0u8) + 1u64;
         Mapping::set(proposal_counter, 0u8, next_id);
-
+        
         let proposal: Proposal = Proposal {
             description: description,
             options: options,
             encrypted_tally: [0field; 10],
             end_block: end_block,
             admin: caller,
+            is_active: true, // Set to true upon creation
         };
         Mapping::set(proposals, next_id, proposal);
     }
@@ -173,6 +171,10 @@ program shadow_vote_v2.aleo {
         new_root: field,
     ) {
         let proposal: Proposal = Mapping::get(proposals, proposal_id);
+        
+        // NEW: Ensure the proposal hasn't been cancelled or explicitly closed
+        assert(proposal.is_active); 
+        
         assert(proposal.end_block >= block.height);
         assert(vote_option < 10u8);
 
@@ -194,22 +196,68 @@ program shadow_vote_v2.aleo {
             updated_tally_array[i] = i == vote_option ? new_val : current_val;
         }
         
-        // Reconstruct and save
         let updated_proposal: Proposal = Proposal {
             description: proposal.description,
             options: proposal.options,
             encrypted_tally: updated_tally_array,
             end_block: proposal.end_block,
-            admin: proposal.admin
+            admin: proposal.admin,
+            is_active: proposal.is_active // Retain active state
         };
         
         Mapping::set(proposals, proposal_id, updated_proposal);
         Mapping::set(nullifiers, nullifier, true);
-
-        // Safety check: ensure user proved against current root
+        
         let current_root: field = Mapping::get(voter_root, 0u8);
         assert_eq(current_root, old_root);
-        
         Mapping::set(voter_root, 0u8, new_root);
+    }
+
+    async transition cancel_proposal(proposal_id: u64) -> Future {
+        return finalize_cancel_proposal(proposal_id, self.caller);
+    }
+
+    async function finalize_cancel_proposal(proposal_id: u64, caller: address) {
+        let proposal: Proposal = Mapping::get(proposals, proposal_id);
+        
+        // Only the admin of the proposal can cancel it
+        assert_eq(caller, proposal.admin);
+        
+        // Can only cancel if it is currently active
+        assert(proposal.is_active);
+
+        let cancelled_proposal: Proposal = Proposal {
+            description: proposal.description,
+            options: proposal.options,
+            encrypted_tally: proposal.encrypted_tally,
+            end_block: proposal.end_block,
+            admin: proposal.admin,
+            is_active: false, // Mark as inactive
+        };
+        Mapping::set(proposals, proposal_id, cancelled_proposal);
+    }
+
+    async transition close_proposal(proposal_id: u64) -> Future {
+        return finalize_close_proposal(proposal_id);
+    }
+
+    async function finalize_close_proposal(proposal_id: u64) {
+        let proposal: Proposal = Mapping::get(proposals, proposal_id);
+        
+        // Ensure the voting period is actually over
+        assert(block.height > proposal.end_block);
+        
+        // Ensure it hasn't already been closed/cancelled
+        assert(proposal.is_active);
+
+        let closed_proposal: Proposal = Proposal {
+            description: proposal.description,
+            options: proposal.options,
+            encrypted_tally: proposal.encrypted_tally,
+            end_block: proposal.end_block,
+            admin: proposal.admin,
+            is_active: false, // Permanently close voting
+        };
+        Mapping::set(proposals, proposal_id, closed_proposal);
     }
 }

@@ -54,7 +54,7 @@ export const CastVoteButton: React.FC<Props> = ({ proposalId, optionIndex, balan
       const aleoTransaction = Transaction.createTransaction(
         publicKey,
         WalletAdapterNetwork.TestnetBeta, 
-        'shadow_vote_v2.aleo',            
+        'shadow_vote_v3.aleo',            
         'cast_vote',                      
         inputs,
         fee
