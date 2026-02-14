@@ -32,3 +32,4 @@ export type ProposalData = {
 };
 
 export const SHADOWVOTE_PROGRAM_ID = 'shadow_vote_v3.aleo';
+export const USDC_PROGRAM_ID = 'test_usdcx_stablecoin.aleo';

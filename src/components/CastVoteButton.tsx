@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { useWallet } from '@demox-labs/aleo-wallet-adapter-react';
-import { Transaction, WalletAdapterNetwork } from '@demox-labs/aleo-wallet-adapter-base';
+import { useWallet } from '@provablehq/aleo-wallet-adaptor-react';
+import { Transaction, WalletAdapterNetwork } from '@provablehq/aleo-wallet-adaptor-core';
 import { useMerkleProof } from '@/hooks/useMerkleProof'; 
 import { buildVoteInputs, computeNullifier } from '@/utils/crypto';
 import { getFeeForFunction } from '@/utils/feeCalculator'; 
