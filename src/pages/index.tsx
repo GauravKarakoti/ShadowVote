@@ -2,20 +2,23 @@ import type { NextPageWithLayout } from '@/types/index.js';
 import { NextSeo } from 'next-seo';
 import Layout from '@/layouts/_layout';
 import Button from '@/components/ui/button/index';
-import { useWallet } from '@demox-labs/aleo-wallet-adapter-react';
-import { WalletNotConnectedError } from '@demox-labs/aleo-wallet-adapter-base';
+import { useWallet } from '@provablehq/aleo-wallet-adaptor-react';
+import { WalletNotConnectedError } from '@provablehq/aleo-wallet-adaptor-core';
 import { useRouter } from 'next/router';
 
 const MainPage: NextPageWithLayout = () => {
-  const { publicKey } = useWallet();
+  // FIX: Destructure 'address' instead of 'publicKey'
+  const { address } = useWallet();
   const router = useRouter();
 
   const handleButtonClick = async () => {
     try {
-      if (!publicKey) throw new WalletNotConnectedError();
+      // FIX: Check 'address'
+      if (!address) throw new WalletNotConnectedError();
       router.push('/dashboard'); 
     } catch (error) {
       // Prompt wallet connection usually handles itself, but alert as backup
+      // You might want to trigger the wallet modal here if your UI supports it
       alert('Please connect your wallet to continue.');
     }
   };
@@ -40,7 +43,8 @@ const MainPage: NextPageWithLayout = () => {
             onClick={handleButtonClick}
             className="btn btn-primary px-6 py-3 text-lg font-semibold"
           >
-            {publicKey ? 'Launch App' : 'Connect Wallet'}
+            {/* FIX: Check 'address' for conditional rendering */}
+            {address ? 'Launch App' : 'Connect Wallet'}
           </Button>
         </div>
       </div>

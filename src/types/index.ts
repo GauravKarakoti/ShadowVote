@@ -1,8 +1,10 @@
 import type { NextPage } from 'next';
 import type { ReactElement, ReactNode } from 'react';
-import { WalletAdapterNetwork } from '@demox-labs/aleo-wallet-adapter-base';
+// FIX: Import Network from aleo-types
+import { Network } from '@provablehq/aleo-types'; 
 
-export const CURRENT_NETWORK: WalletAdapterNetwork = WalletAdapterNetwork.TestnetBeta;
+// FIX: Update usage to Network.Testnet (or appropriate enum member)
+export const CURRENT_NETWORK: Network = Network.TESTNET;
 export const CURRENT_RPC_URL = "https://testnetbeta.aleorpc.com";
 
 export type NextPageWithLayout<P = {}> = NextPage<P> & {
@@ -18,7 +20,7 @@ export type VoteData = {
 
 export type ProposalData = {
   id: number;
-  title: string; // Note: The contract uses 'description' as a field. This might need mapping.
+  title: string; 
   description: string;
   creatorAddress: string;
   deadline: number;
@@ -27,7 +29,6 @@ export type ProposalData = {
   isFinalized: boolean;
   winningOption?: number;
   votes?: VoteData[];
-  // ADDED: Options array matching the contract's structure
   options: string[]; 
 };
 

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { useWallet } from '@demox-labs/aleo-wallet-adapter-react';
-import { Transaction, WalletAdapterNetwork } from '@demox-labs/aleo-wallet-adapter-base';
+import { useWallet } from '@provablehq/aleo-wallet-adaptor-react';
+// Import types from aleo-types instead of core
+import { TransactionOptions } from '@provablehq/aleo-types'; 
 import { SHADOWVOTE_PROGRAM_ID } from '@/types/index';
 import { getFeeForFunction } from '@/utils/feeCalculator';
 
@@ -14,24 +15,30 @@ const padOptions = (opts: string[]) => {
 };
 
 // Helper to convert text to Aleo field (Mock implementation)
-// In production, use a hash function or encoding.
 const stringToField = (str: string) => {
-  // Simple mock: just returns a hardcoded field if string is not numeric
-  // You should implement proper string->field encoding here
   return !isNaN(Number(str)) ? `${str}field` : `12345field`; 
 };
 
 export const CreateProposal = () => {
-  const { publicKey, requestTransaction } = useWallet();
+  // Check if executeTransaction is available, fallback to requestTransaction if needed
+  const { publicKey, requestTransaction, executeTransaction } = useWallet() as any; 
   const [description, setDescription] = useState('');
-  const [options, setOptions] = useState<string[]>(['', '']); // Start with 2 options
+  const [options, setOptions] = useState<string[]>(['', '']); 
   const [endBlock, setEndBlock] = useState(0);
   const [quorum, setQuorum] = useState(0);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!publicKey || !requestTransaction) return;
+    if (!publicKey) return;
+    
+    // Support both new and old method names
+    const submitFn = executeTransaction || requestTransaction;
+    if (!submitFn) {
+        alert("Wallet does not support transaction execution");
+        return;
+    }
+
     setLoading(true);
 
     try {
@@ -47,19 +54,23 @@ export const CreateProposal = () => {
         `${quorum}u64`              // quorum: u64
       ];
 
-      // 2. Create Transaction
+      // 2. Create Transaction Object (Plain Object instead of Transaction class)
       const fee = getFeeForFunction('create_proposal');
-      const tx = Transaction.createTransaction(
-        publicKey,
-        WalletAdapterNetwork.TestnetBeta,
-        SHADOWVOTE_PROGRAM_ID,
-        'create_proposal',
-        inputs,
-        fee
-      );
+      
+      const transaction: TransactionOptions = {
+        program: SHADOWVOTE_PROGRAM_ID,
+        function: 'create_proposal',
+        inputs: inputs,
+        fee: fee
+      };
 
-      // 3. Request
-      const txId = await requestTransaction(tx);
+      // 3. Request Execution
+      // executeTransaction returns { transactionId: string }
+      const result = await submitFn(transaction);
+      
+      // Handle both return formats (string or object)
+      const txId = typeof result === 'string' ? result : result?.transactionId;
+      
       alert(`Proposal created! TxID: ${txId}`);
     } catch (err) {
       console.error(err);
@@ -74,6 +85,8 @@ export const CreateProposal = () => {
     newOpts[index] = val;
     setOptions(newOpts);
   };
+
+  console.log(loading, publicKey);
 
   return (
     <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl shadow-card dark:bg-light-dark space-y-4 mb-8">
@@ -129,7 +142,7 @@ export const CreateProposal = () => {
           />
         </div>
       </div>
-
+      
       <button 
         type="submit" 
         disabled={loading || !publicKey}

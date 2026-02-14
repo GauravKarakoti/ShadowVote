@@ -2,7 +2,7 @@ import cn from 'classnames';
 import React from 'react';
 import { Header } from '@/layouts/_layout';
 import Footer from '@/components/ui/Footer';
-require('@demox-labs/aleo-wallet-adapter-reactui/dist/styles.css');
+require('@provablehq/aleo-wallet-adaptor-react-ui/dist/styles.css');
 
 interface DashboardLayoutProps {
   contentClassName?: string;

@@ -1,6 +1,5 @@
-import { Transaction } from '@demox-labs/aleo-wallet-adapter-base';
-import { LeoWalletAdapter } from '@demox-labs/aleo-wallet-adapter-leo';
-import { CURRENT_NETWORK } from '@/types/index.js';
+import { LeoWalletAdapter } from '@provablehq/aleo-wallet-adaptor-leo';
+import { TransactionOptions } from '@provablehq/aleo-types'; 
 import { getFeeForFunction } from '@/utils/feeCalculator.js';
 
 export const CREDITS_PROGRAM_ID = 'credits.aleo';
@@ -15,7 +14,7 @@ export async function privateTransfer(
 ): Promise<string> {
   const formattedAmount = `${amountInMicrocredits}000000u64`; 
 
-  const allRecords = await wallet.requestRecords(CREDITS_PROGRAM_ID);
+  const allRecords = await wallet.requestRecords(CREDITS_PROGRAM_ID, true);
   if (!allRecords || allRecords.length === 0) {
     throw new Error('No credits records found.');
   }
@@ -49,22 +48,26 @@ export async function privateTransfer(
   const txInputs = [chosenRecord, targetAddress, formattedAmount];
   const fee = getFeeForFunction(TRANSFER_PRIVATE_FUNCTION);
 
-  const transaction = Transaction.createTransaction(
-    publicKey,
-    CURRENT_NETWORK,
-    CREDITS_PROGRAM_ID,
-    TRANSFER_PRIVATE_FUNCTION,
-    txInputs,
-    fee,
-    true   
-  );
+  const transaction: TransactionOptions = {
+    program: CREDITS_PROGRAM_ID,
+    function: TRANSFER_PRIVATE_FUNCTION,
+    // FIX: Cast txInputs to string[] to satisfy the TransactionOptions type
+    inputs: txInputs as string[], 
+    fee: fee,
+  };
 
-  const txId = await wallet.requestTransaction(transaction);
+  const result = await wallet.executeTransaction(transaction);
+  const txId = result.transactionId;
+  
   setTxStatus(`Private transfer submitted: ${txId}`);
 
   let finalized = false;
   for (let attempt = 0; attempt < 60; attempt++) {
-    const status = await wallet.transactionStatus(txId);
+    const statusResponse = await wallet.transactionStatus(txId);
+    
+    // Ensure status is a string for comparison
+    const status = String(statusResponse); 
+    
     setTxStatus(`Attempt ${attempt + 1}: ${status}`);
 
     if (status === 'Finalized') {

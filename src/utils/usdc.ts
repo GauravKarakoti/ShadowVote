@@ -1,4 +1,5 @@
-import { Transaction, WalletAdapterNetwork } from "@demox-labs/aleo-wallet-adapter-base";
+// FIX: Import TransactionOptions from aleo-types
+import { TransactionOptions } from "@provablehq/aleo-types";
 
 export const USDCX_PROGRAM_ID = "test_usdcx_stablecoin.aleo"; 
 
@@ -12,7 +13,7 @@ export const USDC_DECIMALS = 6;
 export async function createUSDCxTransferTransaction(
   recipient: string,
   amount: number
-): Promise<Transaction> {
+): Promise<TransactionOptions> { // FIX: Return TransactionOptions
   const amountMicro = BigInt(Math.floor(amount * Math.pow(10, USDC_DECIMALS)));
 
   const inputs = [
@@ -20,14 +21,13 @@ export async function createUSDCxTransferTransaction(
     `${amountMicro}u64`, 
   ];
 
-  return Transaction.createTransaction(
-    recipient,
-    WalletAdapterNetwork.TestnetBeta,
-    USDCX_PROGRAM_ID,
-    "transfer_private", // Assuming private transfer is the default goal
-    inputs,
-    2_000_000 // Standard fee, adjust as needed
-  );
+  // FIX: Return plain object
+  return {
+    program: USDCX_PROGRAM_ID,
+    function: "transfer_private",
+    inputs: inputs,
+    fee: 2_000_000 // Standard fee
+  };
 }
 
 /**
@@ -37,15 +37,14 @@ export async function createUSDCxTransferTransaction(
 export async function createMintsPublicTransaction(
   recipient: string,
   amount: number
-): Promise<Transaction> {
+): Promise<TransactionOptions> { // FIX: Return TransactionOptions
     const amountMicro = BigInt(Math.floor(amount * Math.pow(10, USDC_DECIMALS)));
     
-    return Transaction.createTransaction(
-        recipient,
-        WalletAdapterNetwork.TestnetBeta,
-        USDCX_PROGRAM_ID,
-        "mint_public",
-        [recipient, `${amountMicro}u64`],
-        2_000_000
-    );
+    // FIX: Return plain object
+    return {
+        program: USDCX_PROGRAM_ID,
+        function: "mint_public",
+        inputs: [recipient, `${amountMicro}u64`],
+        fee: 2_000_000
+    };
 }

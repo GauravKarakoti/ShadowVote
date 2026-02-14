@@ -1,15 +1,17 @@
 import type { NextPageWithLayout } from '@/types/index.js';
 import { NextSeo } from 'next-seo';
 import DashboardLayout from '@/layouts/dashboard/_dashboard';
-import { useWallet } from '@demox-labs/aleo-wallet-adapter-react';
+import { useWallet } from '@provablehq/aleo-wallet-adaptor-react';
 import { ManageProposal } from '@/components/ManageProposal';
 import { useState, useEffect } from 'react';
 import type { ProposalData } from '@/types/index.js';
-import { CreateProposal } from '@/components/CreateProposal'; // Import the new component
+import { CreateProposal } from '@/components/CreateProposal'; 
 import { CastVoteButton } from '@/components/CastVoteButton';
 
 const DashboardPage: NextPageWithLayout = () => {
-  const { publicKey } = useWallet();
+  // FIX: Destructure 'address' instead of 'publicKey'
+  const { address } = useWallet(); 
+  
   const [proposals, setProposals] = useState<ProposalData[]>([]);
   const [currentBlock, setCurrentBlock] = useState<number>(0);
 
@@ -18,7 +20,10 @@ const DashboardPage: NextPageWithLayout = () => {
     // In a real app, you'd also fetch the current network block height here
     setCurrentBlock(1500000); // Mock current block height
     
-    fetch(`${process.env.INDEXER_URL}/proposals`)
+    // Ensure INDEXER_URL is defined, fallback for safety
+    const indexerUrl = process.env.INDEXER_URL || 'http://localhost:3000/api';
+    
+    fetch(`${indexerUrl}/proposals`)
       .then(res => res.json())
       .then(data => setProposals(data))
       .catch(err => console.error("Failed to fetch proposals", err));
@@ -34,10 +39,12 @@ const DashboardPage: NextPageWithLayout = () => {
           </h2>
         </div>
 
-        {publicKey && <CreateProposal />}
+        {/* FIX: Use 'address' to check if wallet is connected */}
+        {address && <CreateProposal />}
 
         <div className="rounded-xl bg-white p-6 shadow-card dark:bg-light-dark">
-          {!publicKey ? (
+          {/* FIX: Use 'address' to check if wallet is connected */}
+          {!address ? (
             <div className="flex flex-col items-center justify-center py-12">
               <p className="mb-4 text-lg text-gray-500 dark:text-gray-400">
                 Please connect your Aleo wallet to access proposals.

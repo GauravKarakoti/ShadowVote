@@ -6,18 +6,17 @@ import { Hydrate, QueryClient, QueryClientProvider } from 'react-query';
 import { ReactQueryDevtools } from 'react-query/devtools';
 import { ThemeProvider } from 'next-themes';
 
-// --- CHANGED: Imports using "adaptor" (with o), "core", and "react-ui" ---
-import { WalletProvider } from '@provablehq/aleo-wallet-adaptor-react';
+// FIX: Import Network from aleo-types
+import { Network } from '@provablehq/aleo-types'; 
+
+import { AleoWalletProvider } from '@provablehq/aleo-wallet-adaptor-react';
 import { WalletModalProvider } from '@provablehq/aleo-wallet-adaptor-react-ui';
 import { LeoWalletAdapter } from '@provablehq/aleo-wallet-adaptor-leo';
 import { ShieldWalletAdapter } from '@provablehq/aleo-wallet-adaptor-shield';
-import {
-  DecryptPermission,
-  WalletAdapterNetwork,
-} from '@provablehq/aleo-wallet-adaptor-core'; // Was "base"
+import { DecryptPermission } from '@provablehq/aleo-wallet-adaptor-core';
 
-// --- CHANGED: Style import ---
-import '@provablehq/aleo-wallet-adaptor-react-ui/styles.css'; // Was "reactui"
+// FIX: Update CSS import path to include /dist/
+import '@provablehq/aleo-wallet-adaptor-react-ui/dist/styles.css'; 
 
 import 'swiper/swiper-bundle.css';
 import '@/assets/css/globals.css';
@@ -28,7 +27,7 @@ type AppPropsWithLayout = AppProps & {
 
 function CustomApp({ Component, pageProps }: AppPropsWithLayout) {
   const [queryClient] = useState(() => new QueryClient());
-  const getLayout = Component.getLayout ?? ((page) => page);
+  const getLayout = Component.getLayout ?? ((page: any) => page);
 
   const wallets = useMemo(
     () => [
@@ -49,10 +48,11 @@ function CustomApp({ Component, pageProps }: AppPropsWithLayout) {
       </Head>
       <QueryClientProvider client={queryClient}>
         <Hydrate state={pageProps.dehydratedState}>
-          <WalletProvider
+          <AleoWalletProvider
             wallets={wallets}
             decryptPermission={DecryptPermission.UponRequest}
-            network={WalletAdapterNetwork.TestnetBeta}
+            // FIX: Use Network.Testnet (or appropriate network enum member)
+            network={Network.Testnet} 
             autoConnect
           >
             <WalletModalProvider>
@@ -60,7 +60,7 @@ function CustomApp({ Component, pageProps }: AppPropsWithLayout) {
                 {getLayout(<Component {...pageProps} />)}
               </ThemeProvider>
             </WalletModalProvider>
-          </WalletProvider>
+          </AleoWalletProvider>
         </Hydrate>
         <ReactQueryDevtools initialIsOpen={false} position="bottom-right" />
       </QueryClientProvider>

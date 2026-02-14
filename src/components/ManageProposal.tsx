@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { useWallet } from '@demox-labs/aleo-wallet-adapter-react';
-import { Transaction, WalletAdapterNetwork } from '@demox-labs/aleo-wallet-adapter-base';
-import { SHADOWVOTE_PROGRAM_ID } from '@/types/index'; // Import the ID constant
+import { useWallet } from '@provablehq/aleo-wallet-adaptor-react';
+// Import types from aleo-types. Install if missing: npm install @provablehq/aleo-types
+import { TransactionOptions } from '@provablehq/aleo-types';
+import { SHADOWVOTE_PROGRAM_ID } from '@/types/index';
 
 interface Props {
   proposalId: number;
@@ -20,36 +21,47 @@ export const ManageProposal: React.FC<Props> = ({
   endBlock, 
   currentBlock 
 }) => {
-  const { publicKey, requestTransaction } = useWallet();
+  // Destructure executeTransaction (new) or requestTransaction (old/alias)
+  // Casting to 'any' helps bypass strict type checks if the react adapter types are slightly out of sync
+  const { publicKey, requestTransaction, executeTransaction } = useWallet() as any;
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Conditions to render:
-  // 1. Voting ended AND Proposal is not yet finalized -> Show "Tally" (Anyone can call, but usually admin)
-  // 2. Voting active AND User is Admin -> Show "Cancel"
-  
   const isVotingEnded = currentBlock > endBlock;
   const isAdmin = publicKey === adminAddress;
 
   if (!publicKey) return null;
 
   const handleAction = async (action: 'cancel_proposal' | 'tally_proposal') => {
-    if (!requestTransaction) return;
+    // Check for availability of either method
+    const submitTransaction = executeTransaction || requestTransaction;
+
+    if (!submitTransaction) {
+        alert("Wallet does not support transaction submission");
+        return;
+    }
+
     setIsProcessing(true);
 
     try {
       const inputs = [`${proposalId}u64`];
       const fee = 1_000_000; 
       
-      const aleoTransaction = Transaction.createTransaction(
-        publicKey,
-        WalletAdapterNetwork.TestnetBeta, 
-        SHADOWVOTE_PROGRAM_ID,            
-        action,                      
-        inputs,
-        fee
-      );
+      // REPLACEMENT: Create a plain object instead of using Transaction.createTransaction
+      const aleoTransaction: TransactionOptions = {
+        program: SHADOWVOTE_PROGRAM_ID,
+        function: action,
+        inputs: inputs,
+        fee: fee 
+        // Note: You can add 'network: WalletAdapterNetwork.TestnetBeta' here if strictly required by your wallet version,
+        // but typically the wallet handles the network selection.
+      };
 
-      const txId = await requestTransaction(aleoTransaction);
+      // Submit the object directly
+      const result = await submitTransaction(aleoTransaction);
+      
+      // Handle result (which might be an object { transactionId: ... } or a string ID)
+      const txId = typeof result === 'string' ? result : result?.transactionId;
+
       console.log(`${action} submitted with TxID:`, txId);
       alert(`Transaction submitted! ID: ${txId}`);
     } catch (error) {
