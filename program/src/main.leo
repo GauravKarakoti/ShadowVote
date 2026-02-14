@@ -2,7 +2,9 @@
 // Added Features: On-chain Tally, Quorum Enforcement, and Result Finalization
 
 program shadow_vote_v3.aleo {
-    
+    @admin(address="aleo14y3wnsmr9ph4422qqgcnze6dvm7k8g89prm4lv23qs9w5emah59swp0kfd")
+    async constructor() {}
+
     // Proposal struct updated with Quorum and Result fields
     struct Proposal {
         description: field,          
