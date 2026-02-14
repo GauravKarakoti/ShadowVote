@@ -18,16 +18,17 @@ export type VoteData = {
 
 export type ProposalData = {
   id: number;
-  title: string;
+  title: string; // Note: The contract uses 'description' as a field. This might need mapping.
   description: string;
   creatorAddress: string;
-  deadline: number; // Block height
+  deadline: number;
   isActive: boolean;
-  // NEW FIELDS
   quorum: number;
   isFinalized: boolean;
-  winningOption?: number; // Optional, only present if finalized
+  winningOption?: number;
   votes?: VoteData[];
+  // ADDED: Options array matching the contract's structure
+  options: string[]; 
 };
 
 export const SHADOWVOTE_PROGRAM_ID = 'shadow_vote_v3.aleo';

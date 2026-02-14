@@ -5,6 +5,8 @@ import { useWallet } from '@demox-labs/aleo-wallet-adapter-react';
 import { ManageProposal } from '@/components/ManageProposal';
 import { useState, useEffect } from 'react';
 import type { ProposalData } from '@/types/index.js';
+import { CreateProposal } from '@/components/CreateProposal'; // Import the new component
+import { CastVoteButton } from '@/components/CastVoteButton';
 
 const DashboardPage: NextPageWithLayout = () => {
   const { publicKey } = useWallet();
@@ -32,6 +34,8 @@ const DashboardPage: NextPageWithLayout = () => {
           </h2>
         </div>
 
+        {publicKey && <CreateProposal />}
+
         <div className="rounded-xl bg-white p-6 shadow-card dark:bg-light-dark">
           {!publicKey ? (
             <div className="flex flex-col items-center justify-center py-12">
@@ -57,6 +61,30 @@ const DashboardPage: NextPageWithLayout = () => {
                   </div>
                   <p className="text-gray-600 dark:text-gray-400 mt-2">{proposal.description}</p>
                   
+                  {proposal.isActive && (
+                    <div className="mt-4 border-t pt-4">
+                      <h4 className="font-semibold mb-2">Cast Your Vote</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {proposal.options?.map((opt, idx) => {
+                            // Skip empty options (0field)
+                            if (opt === "0field" || opt === "0") return null;
+                            
+                            return (
+                              <div key={idx} className="flex justify-between items-center bg-gray-50 p-3 rounded">
+                                <span>Option {idx}: {opt}</span>
+                                <CastVoteButton 
+                                  proposalId={proposal.id}
+                                  optionIndex={idx}
+                                  balance={100} // TODO: Fetch real user balance from Indexer or RPC
+                                  onSuccess={() => alert("Vote Cast!")}
+                                />
+                              </div>
+                            );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Admin Controls */}
                   <ManageProposal 
                     proposalId={proposal.id} 

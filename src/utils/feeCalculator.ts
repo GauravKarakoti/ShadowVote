@@ -1,26 +1,24 @@
-// feeCalculator.ts
-
 export interface FeeMapping {
-    [functionName: string]: number; // fee in credits
-  }
-  
-  // Hard-coded fee values in credits
-  export const defaultFeeValues: FeeMapping = {
-    //You can use Leo Playground to get the fee values for each function
-    // https://playground.aleo.org/
+    [functionName: string]: number;
+}
+
+export const defaultFeeValues: FeeMapping = {
     transfer_public: 0.04406,
     transfer_private: 0.04406,
-  };
-  
-  /**
-   * Returns the fee for a given function in micro credits.
-   * (1 credit = 1,000,000 micro credits)
-   */
-  export function getFeeForFunction(functionName: string): number {
+    // Added fees based on typical Aleo functionality costs (estimates)
+    cast_vote: 0.1,         // Complex transaction with Merkle proof
+    create_proposal: 0.5,   // Storage heavy
+    tally_proposal: 0.2,    // Computation heavy
+    cancel_proposal: 0.05,
+    close_proposal: 0.05,
+};
+
+export function getFeeForFunction(functionName: string): number {
     const feeInCredits = defaultFeeValues[functionName];
     if (feeInCredits === undefined) {
-      throw new Error(`No fee value found for function: ${functionName}`);
+      // Fallback or throw
+      console.warn(`No fee defined for ${functionName}, using default 1.0`);
+      return 1_000_000;
     }
-    return feeInCredits * 1_000_000; // convert credits to micro credits
-  }
-  
+    return feeInCredits * 1_000_000;
+}

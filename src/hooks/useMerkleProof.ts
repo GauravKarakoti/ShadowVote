@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import localForage from 'localforage';
-import { fetchProof, fetchRoot } from '@/api/indexer.js';
+import { fetchProof, fetchRoot } from '@/api/indexer';
 
 const proofCache = localForage.createInstance({ name: 'merkleProofs' });
 
