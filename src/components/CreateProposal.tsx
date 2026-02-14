@@ -20,8 +20,7 @@ const stringToField = (str: string) => {
 };
 
 export const CreateProposal = () => {
-  // Check if executeTransaction is available, fallback to requestTransaction if needed
-  const { publicKey, requestTransaction, executeTransaction } = useWallet() as any; 
+  const { address: publicKey, executeTransaction } = useWallet();
   const [description, setDescription] = useState('');
   const [options, setOptions] = useState<string[]>(['', '']); 
   const [endBlock, setEndBlock] = useState(0);
@@ -33,7 +32,7 @@ export const CreateProposal = () => {
     if (!publicKey) return;
     
     // Support both new and old method names
-    const submitFn = executeTransaction || requestTransaction;
+    const submitFn = executeTransaction;
     if (!submitFn) {
         alert("Wallet does not support transaction execution");
         return;

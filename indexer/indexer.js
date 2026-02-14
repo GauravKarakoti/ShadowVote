@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { AleoNetworkClient } from '@provablehq/sdk/mainnet.js';
+import { AleoNetworkClient } from '@provablehq/sdk/testnet.js';
 import pkg from 'pg';
 const { Pool } = pkg;
 import { MerkleTree } from './merkle.js';
