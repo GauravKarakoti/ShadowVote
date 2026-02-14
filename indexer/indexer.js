@@ -16,36 +16,33 @@ const pool = new Pool({
   password: process.env.DB_PASSWORD,
   port: 5432,
   ssl: {
-    rejectUnauthorized: false // This bypasses strict certificate validation, which is common for many managed DBs
+    rejectUnauthorized: false
   }
 });
 
 // ---------- Aleo connection ----------
 const client = new AleoNetworkClient(process.env.ALEO_API_URL || 'https://api.explorer.provable.com/v2');
+const PROGRAM_ID = 'shadow_vote_v3.aleo'; // Update to v3
 
 // ---------- In‑memory Merkle tree ----------
-const merkleTree = new MerkleTree(20); // depth 20
+const merkleTree = new MerkleTree(20); 
 
 // ---------- Load persisted leaves from DB on startup ----------
 async function loadLeaves() {
   const res = await pool.query('SELECT address, balance, salt, encrypted_salt FROM voters');
   for (const row of res.rows) {
     await merkleTree.insert(row.address, Number(row.balance), BigInt(row.salt));
-    // Also store encrypted_salt for API delivery
     merkleTree.setEncryptedSalt(row.address, row.encrypted_salt);
   }
   console.log(`Loaded ${res.rows.length} voters from DB`);
 }
-await loadLeaves();
 
 let lastProcessedHeight = 0; 
 
 async function startPolling() {
   try {
-    // FIX: Changed from getLatestBlockHeight() to getLatestHeight()
     const currentHeight = await client.getLatestHeight();
     
-    // If we just started, optionally start from the current height or a specific block
     if (lastProcessedHeight === 0) {
       lastProcessedHeight = currentHeight;
     }
@@ -53,41 +50,53 @@ async function startPolling() {
     while (lastProcessedHeight <= currentHeight) {
       const block = await client.getBlock(lastProcessedHeight);
       
-      // Look for transactions in the block
       if (block.transactions) {
         for (const tx of block.transactions) {
-          // Check if transaction was accepted and executed
           if (tx.status === 'accepted' && tx.type === 'execute' && tx.transaction.execution) {
             const execution = tx.transaction.execution;
             
             for (const transition of execution.transitions) {
-              // Match your program and the function you want to index
-              if (transition.program === 'shadow_vote_v3.aleo') {
+              if (transition.program === PROGRAM_ID) {
+                
+                // 1. Handle Voting
                 if (transition.function === 'cast_vote') {
                   console.log(`Found cast_vote at block ${lastProcessedHeight}`);
-                  
-                  // Extract the parameters from the transition inputs/outputs
                   const address = transition.inputs[0]?.value; 
                   const amount = transition.inputs[1]?.value; 
                   
+                  // Note: In a real app, you decrypt the actual values or use the public inputs 
+                  // associated with the proof. For this demo, we assume inputs are visible or 
+                  // handled via off-chain communication.
                   const eventData = {
                     address: address,
                     amount: amount,
                     salt: "0",             
                     encrypted_salt: "..."  
                   };
+                  await processDeposit({ data: eventData });
 
-                  await processDeposit({ data: eventData, block_height: lastProcessedHeight });
-                } else if (transition.function === 'cancel_proposal' || transition.function === 'close_proposal') {
-                  // The proposal_id is the first input in both functions
+                // 2. Handle Proposal Cancellation
+                } else if (transition.function === 'cancel_proposal') {
                   const rawProposalId = transition.inputs[0]?.value; 
                   const proposalId = parseInt(rawProposalId.replace('u64', ''), 10);
+                  console.log(`Proposal ${proposalId} cancelled`);
                   
-                  console.log(`Found ${transition.function} for proposal ${proposalId} at block ${lastProcessedHeight}`);
-                  
-                  // Mark proposal as inactive in the database
                   await pool.query(
                     `UPDATE proposals SET is_active = false, updated_at = NOW() WHERE id = $1`,
+                    [proposalId]
+                  );
+
+                // 3. Handle Tally / Finalization (NEW)
+                } else if (transition.function === 'tally_proposal') {
+                  const rawProposalId = transition.inputs[0]?.value;
+                  const proposalId = parseInt(rawProposalId.replace('u64', ''), 10);
+                  console.log(`Proposal ${proposalId} tallied and finalized`);
+
+                  // In a production indexer, you would parse the transition outputs 
+                  // or state writes to get the 'winning_option'. 
+                  // For now, we mark it finalized so the frontend knows to fetch the result.
+                  await pool.query(
+                    `UPDATE proposals SET is_active = false, is_finalized = true, updated_at = NOW() WHERE id = $1`,
                     [proposalId]
                   );
                 }
@@ -102,30 +111,23 @@ async function startPolling() {
     console.error("Error polling blocks:", error.message);
   }
   
-  // Poll again every 10 seconds
   setTimeout(startPolling, 10000);
 }
 
-// Start the polling loop after loading leaves
 await loadLeaves();
 startPolling();
 
 async function processDeposit(event) {
   const { address, amount, salt, encrypted_salt } = event.data;
-  // Insert or update in DB
   await pool.query(
     `INSERT INTO voters (address, balance, salt, encrypted_salt, updated_at)
      VALUES ($1, $2, $3, $4, NOW())
      ON CONFLICT (address) DO UPDATE SET balance = $2, salt = $3, encrypted_salt = $4, updated_at = NOW()`,
     [address, amount, salt, encrypted_salt]
   );
-  // Update Merkle tree
   await merkleTree.insert(address, Number(amount), BigInt(salt));
   merkleTree.setEncryptedSalt(address, encrypted_salt);
-  console.log(`Processed deposit for ${address}, amount ${amount}`);
 }
-
-// Similar for withdraw events...
 
 // ---------- Express API ----------
 const app = express();
