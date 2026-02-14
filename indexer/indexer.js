@@ -17,7 +17,11 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-const client = new AleoNetworkClient(process.env.ALEO_API_URL || 'https://api.explorer.provable.com/v2');
+// FIX 1: Use the correct API URL for Testnet Beta. 
+// This must match the network your wallet is using.
+const ALEO_API_URL = process.env.ALEO_API_URL || 'https://api.explorer.provable.com/v2';
+const client = new AleoNetworkClient(ALEO_API_URL);
+
 const PROGRAM_ID = 'shadow_vote_v3.aleo';
 const merkleTree = new MerkleTree(20); 
 
@@ -40,71 +44,103 @@ async function loadLeaves() {
   console.log(`Loaded ${res.rows.length} voters from DB`);
 }
 
-// FIX: Start from a persisted height or the program deployment height to avoid missing transactions
-let lastProcessedHeight = 1250000; // Replace with your actual deployment height
+// FIX 2: Allow start block to be configured via ENV, default to a safe recent height.
+// If you just deployed, set this to your deployment height to save time.
+let lastProcessedHeight = process.env.START_BLOCK ? parseInt(process.env.START_BLOCK) : 0;
 
 async function startPolling() {
   try {
     const currentHeight = await client.getLatestHeight();
     
+    // FIX 3: Safety check - if local height is ahead of network (e.g. after a network reset), reset it.
+    if (lastProcessedHeight > currentHeight) {
+      console.warn(`⚠️ Local height (${lastProcessedHeight}) is ahead of network (${currentHeight}). Resetting to current head.`);
+      lastProcessedHeight = currentHeight - 5; // Go back slightly to be safe
+      if (lastProcessedHeight < 0) lastProcessedHeight = 0;
+    }
+
+    console.log(`⛓️ Network Height: ${currentHeight} | Indexer Height: ${lastProcessedHeight}`);
+
     // Ensure we don't skip blocks on restart
     while (lastProcessedHeight <= currentHeight) {
-      console.log(`Polling block ${lastProcessedHeight}...`);
-      const block = await client.getBlock(lastProcessedHeight);
-      
-      if (block.transactions) {
-        for (const tx of block.transactions) {
-          if (tx.status === 'accepted' && tx.type === 'execute' && tx.transaction.execution) {
-            for (const transition of tx.transaction.execution.transitions) {
-              if (transition.program === PROGRAM_ID) {
+      // Log every 10 blocks or if we are close to tip to reduce noise
+      if (lastProcessedHeight % 100 === 0 || currentHeight - lastProcessedHeight < 10) {
+        console.log(`Scanning block ${lastProcessedHeight}...`);
+      }
+
+      try {
+        const block = await client.getBlock(lastProcessedHeight);
+        
+        if (block.transactions) {
+          for (const tx of block.transactions) {
+            // Check if it's an execution transaction
+            if (tx.status === 'accepted' && tx.type === 'execute' && tx.transaction.execution) {
+              for (const transition of tx.transaction.execution.transitions) {
                 
-                if (transition.function === 'create_proposal') {
-                  const description = transition.inputs[0]?.value.replace('field', ''); 
-                  const optionsRaw = transition.inputs[1]?.value; 
-                  const options = parseAleoArray(optionsRaw);
-                  const endBlock = parseInt(transition.inputs[2]?.value.replace('u32', ''), 10);
-                  const quorum = transition.inputs[3]?.value.replace('u64', '');
-                  const admin = tx.transaction.owner || "unknown";
+                // Match Program ID
+                if (transition.program === PROGRAM_ID) {
+                  console.log(`🔍 Found interaction with ${PROGRAM_ID} at height ${lastProcessedHeight}`);
 
-                  const maxIdRes = await pool.query('SELECT MAX(id) as max_id FROM proposals');
-                  const nextId = (maxIdRes.rows[0].max_id !== null ? parseInt(maxIdRes.rows[0].max_id) : 0) + 1;
+                  if (transition.function === 'create_proposal') {
+                    console.log("Found create_proposal transaction!");
+                    
+                    const description = transition.inputs[0]?.value.replace('field', ''); 
+                    const optionsRaw = transition.inputs[1]?.value; 
+                    const options = parseAleoArray(optionsRaw);
+                    const endBlock = parseInt(transition.inputs[2]?.value.replace('u32', ''), 10);
+                    const quorum = transition.inputs[3]?.value.replace('u64', '');
+                    // Owner might be null in some API responses, handle gracefully
+                    const admin = tx.transaction.owner || "unknown";
 
-                  // FIX: Added 'options' to the INSERT query
-                  await pool.query(
-                    `INSERT INTO proposals (id, description, options, end_block, admin, is_active, quorum, is_finalized, updated_at)
-                     VALUES ($1, $2, $3, $4, $5, true, $6, false, NOW())`,
-                    [nextId, description, options, endBlock, admin, quorum]
-                  );
-                  console.log(`Inserted proposal ${nextId} with ${options.length} options`);
+                    const maxIdRes = await pool.query('SELECT MAX(id) as max_id FROM proposals');
+                    const nextId = (maxIdRes.rows[0].max_id !== null ? parseInt(maxIdRes.rows[0].max_id) : 0) + 1;
 
-                } else if (transition.function === 'cancel_proposal') {
-                  const proposalId = transition.inputs[0]?.value.replace('u64', '');
-                  await pool.query(
-                    `UPDATE proposals SET is_active = false, updated_at = NOW() WHERE id = $1`,
-                    [proposalId]
-                  );
+                    await pool.query(
+                      `INSERT INTO proposals (id, description, options, end_block, admin, is_active, quorum, is_finalized, updated_at)
+                       VALUES ($1, $2, $3, $4, $5, true, $6, false, NOW())`,
+                      [nextId, description, options, endBlock, admin, quorum]
+                    );
+                    console.log(`✅ Inserted proposal ${nextId} into DB`);
 
-                } else if (transition.function === 'tally_proposal') {
-                  const proposalId = transition.inputs[0]?.value.replace('u64', '');
-                  // In a full implementation, you'd parse outputs to find the winning_option
-                  await pool.query(
-                    `UPDATE proposals SET is_active = false, is_finalized = true, updated_at = NOW() WHERE id = $1`,
-                    [proposalId]
-                  );
+                  } else if (transition.function === 'cancel_proposal') {
+                    const proposalId = transition.inputs[0]?.value.replace('u64', '');
+                    await pool.query(
+                      `UPDATE proposals SET is_active = false, updated_at = NOW() WHERE id = $1`,
+                      [proposalId]
+                    );
+                    console.log(`🚫 Cancelled proposal ${proposalId}`);
+
+                  } else if (transition.function === 'tally_proposal') {
+                    const proposalId = transition.inputs[0]?.value.replace('u64', '');
+                    await pool.query(
+                      `UPDATE proposals SET is_active = false, is_finalized = true, updated_at = NOW() WHERE id = $1`,
+                      [proposalId]
+                    );
+                    console.log(`🏁 Finalized proposal ${proposalId}`);
+                  }
                 }
               }
             }
           }
         }
+      } catch (err) {
+        // Handle specific block fetch errors without crashing the loop
+        console.error(`Error fetching block ${lastProcessedHeight}: ${err.message}`);
       }
+      
       lastProcessedHeight++;
     }
   } catch (error) {
-    console.error("Error polling blocks:", error.message);
+    console.error("Error polling network:", error.message);
   }
-  setTimeout(startPolling, 10000);
+  
+  // Poll every 5 seconds
+  setTimeout(startPolling, 5000);
 }
 
+// Initial startup
+console.log(`🚀 Starting Indexer for program: ${PROGRAM_ID}`);
+console.log(`📡 Connecting to API: ${ALEO_API_URL}`);
 await loadLeaves();
 startPolling();
 
@@ -114,7 +150,6 @@ app.use(express.json());
 
 app.get('/proposals', async (req, res) => {
   try {
-    // FIX: Ensure all fields expected by ProposalData type are returned
     const result = await pool.query('SELECT * FROM proposals ORDER BY id DESC');
     res.json(result.rows);
   } catch (e) {
