@@ -58,22 +58,28 @@ async function startPolling() {
             for (const transition of execution.transitions) {
               if (transition.program === PROGRAM_ID) {
                 
-                // 1. Handle Voting
-                if (transition.function === 'cast_vote') {
-                  console.log(`Found cast_vote at block ${lastProcessedHeight}`);
-                  const address = transition.inputs[0]?.value; 
-                  const amount = transition.inputs[1]?.value; 
+                // 1. Handle Create Proposal (NEW)
+                if (transition.function === 'create_proposal') {
+                  console.log(`Found create_proposal at block ${lastProcessedHeight}`);
                   
-                  // Note: In a real app, you decrypt the actual values or use the public inputs 
-                  // associated with the proof. For this demo, we assume inputs are visible or 
-                  // handled via off-chain communication.
-                  const eventData = {
-                    address: address,
-                    amount: amount,
-                    salt: "0",             
-                    encrypted_salt: "..."  
-                  };
-                  await processDeposit({ data: eventData });
+                  // Extract inputs based on the Leo program structure:
+                  // transition create_proposal(description: field, options: [field; 10], end_block: u32, quorum: u64)
+                  const description = transition.inputs[0]?.value; 
+                  const options = transition.inputs[1]?.value; 
+                  const endBlock = parseInt(transition.inputs[2]?.value.replace('u32', ''), 10);
+                  const quorum = parseInt(transition.inputs[3]?.value.replace('u64', ''), 10);
+                  const admin = tx.transaction.owner || "unknown";
+
+                  // Calculate next sequential ID for the database
+                  const maxIdRes = await pool.query('SELECT MAX(id) as max_id FROM proposals');
+                  const nextId = (maxIdRes.rows[0].max_id !== null ? parseInt(maxIdRes.rows[0].max_id) : 0) + 1;
+
+                  await pool.query(
+                    `INSERT INTO proposals (id, description, end_block, admin, is_active, quorum, is_finalized, updated_at)
+                     VALUES ($1, $2, $3, $4, true, $5, false, NOW())`,
+                    [nextId, description, endBlock, admin, quorum]
+                  );
+                  console.log(`Inserted new proposal ${nextId} into DB`);
 
                 // 2. Handle Proposal Cancellation
                 } else if (transition.function === 'cancel_proposal') {
@@ -86,19 +92,29 @@ async function startPolling() {
                     [proposalId]
                   );
 
-                // 3. Handle Tally / Finalization (NEW)
+                } else if (transition.function === 'cancel_proposal') {
+                  const rawProposalId = transition.inputs[0]?.value; 
+                  const proposalId = parseInt(rawProposalId.replace('u64', ''), 10);
+                  
+                  await pool.query(
+                    `UPDATE proposals SET is_active = false, updated_at = NOW() WHERE id = $1`,
+                    [proposalId]
+                  );
+
+                // 4. Handle Tally / Finalization (UPDATED)
                 } else if (transition.function === 'tally_proposal') {
                   const rawProposalId = transition.inputs[0]?.value;
                   const proposalId = parseInt(rawProposalId.replace('u64', ''), 10);
-                  console.log(`Proposal ${proposalId} tallied and finalized`);
-
-                  // In a production indexer, you would parse the transition outputs 
-                  // or state writes to get the 'winning_option'. 
-                  // For now, we mark it finalized so the frontend knows to fetch the result.
+                  
+                  // In production, parse outputs to find the winner index. 
+                  // For this update, we mark the record as finalized per your schema.
                   await pool.query(
-                    `UPDATE proposals SET is_active = false, is_finalized = true, updated_at = NOW() WHERE id = $1`,
+                    `UPDATE proposals 
+                     SET is_active = false, is_finalized = true, updated_at = NOW() 
+                     WHERE id = $1`,
                     [proposalId]
                   );
+                  console.log(`Proposal ${proposalId} finalized in DB`);
                 }
               }
             }

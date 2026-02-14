@@ -21,7 +21,7 @@ const DashboardPage: NextPageWithLayout = () => {
     setCurrentBlock(1500000); // Mock current block height
     
     // Ensure INDEXER_URL is defined, fallback for safety
-    const indexerUrl = process.env.INDEXER_URL || 'http://localhost:3000/api';
+    const indexerUrl = process.env.INDEXER_URL || 'http://localhost:5000';
     
     fetch(`${indexerUrl}/proposals`)
       .then(res => res.json())

@@ -9,7 +9,7 @@ const VOTERS = [
 async function testVote() {
   for (const voter of VOTERS) {
     // 1. Fetch proof from indexer
-    const { proof, encrypted_salt } = await axios.get(`http://localhost:3000/proof/${voter}`).then(r => r.data);
+    const { proof, encrypted_salt } = await axios.get(`${process.env.INDEXER_URL}/proof/${voter}`).then(r => r.data);
     
     // 2. Decrypt salt (mock – in real test, use actual view key)
     const salt = 12345n; // placeholder

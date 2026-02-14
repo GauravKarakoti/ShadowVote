@@ -1,5 +1,5 @@
 // Adjust the URL if your indexer runs on a different port/host
-const INDEXER_URL = process.env.NEXT_PUBLIC_INDEXER_URL || 'http://localhost:3000';
+const INDEXER_URL = process.env.NEXT_PUBLIC_INDEXER_URL || 'http://localhost:5000';
 
 export async function fetchRoot(): Promise<string> {
   const res = await fetch(`${INDEXER_URL}/root`);
