@@ -227,10 +227,8 @@ program shadow_vote_v3.aleo {
 
     async function finalize_tally_proposal(proposal_id: u64) {
         let proposal: Proposal = Mapping::get(proposals, proposal_id);
-
         // Ensure voting has ended
         assert(block.height > proposal.end_block);
-        
         // Ensure not already tallied
         assert(!proposal.is_finalized);
 
@@ -243,10 +241,10 @@ program shadow_vote_v3.aleo {
             let votes: field = proposal.encrypted_tally[i];
             total_votes += votes;
             
-            if votes > max_votes {
-                max_votes = votes;
-                winner = i; // Store the winning index
-            }
+            // FIX: Use ternary operators instead of an if block
+            let is_new_max: bool = votes > max_votes;
+            max_votes = is_new_max ? votes : max_votes;
+            winner = is_new_max ? i : winner;
         }
 
         // Enforce Quorum
@@ -263,7 +261,6 @@ program shadow_vote_v3.aleo {
             winning_option: winner,
             is_finalized: true,  // Mark as finalized
         };
-
         Mapping::set(proposals, proposal_id, finalized_proposal);
     }
 
